@@ -1,0 +1,22 @@
+# CMake build output
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Object files / binaries
+*.o
+*.obj
+*.a
+*.so
+*.out
+hft_benchmark
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
