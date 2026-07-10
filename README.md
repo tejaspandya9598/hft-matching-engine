@@ -68,11 +68,41 @@ g++ -O3 -std=c++20 -march=native -Iinclude src/OrderBook.cpp bench/sync_benchmar
 ## Design notes
 
 - Prices are fixed-point `uint64_t` (4 implied decimals) — no floating point in the
-  hot path.
+  hot path. Float comparison in a price-priority book is a correctness bug, not just
+  a slowdown.
 - Matching is strict price-time priority: a marketable order walks the opposite book
   from the best level, filling resting orders FIFO within each level.
 - The hash-map price lookup is a pragmatic choice; a production system on a known
   tick grid would direct-address an array of levels.
+
+## Complexity, precisely
+
+Claiming "O(1)" deserves the fine print. With $L$ = live price levels:
+
+| Operation | Cost | Why |
+|---|---|---|
+| Add (resting, existing level) | O(1) avg | hash lookup + tail append |
+| Add (resting, **new** level) | O(log L) | ordered-map insert for BBO tracking |
+| Cancel | O(1) avg | hash lookup + intrusive-list splice |
+| Execute against best | O(1) per fill | `map.begin()` + FIFO head pops |
+| Best bid / ask | O(1) | ordered-map front |
+
+The O(1) cancel is the intrusive-list trick: the order struct carries its own
+`prev`/`next` pointers, so removal is two pointer writes — no search, no allocator
+call. The memory pool converts `new`/`delete` into free-list pops/pushes, which is
+what keeps *tail* latency flat, not just the average — allocation is where p99
+spikes come from.
+
+Throughput methodology: the benchmark pre-generates a uniform add/cancel/execute
+message mix, then times the pure matching loop — the number measures the engine,
+not the RNG. The test suite (`tests/test_orderbook.cpp`, run via CTest) pins down
+price-time priority, limit-respecting book walks, partial fills, and pool reuse
+under a 10k-order churn.
+
+## Further reading
+
+- NASDAQ TotalView-ITCH 5.0 specification — the message model `ItchParser.hpp` targets.
+- W.K. Selph, *How to Build a Fast Limit Order Book* — the classic write-up of the pointer-based design this follows.
 
 ---
 
