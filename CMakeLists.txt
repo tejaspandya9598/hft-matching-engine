@@ -20,6 +20,14 @@ add_executable(hft_sync_benchmark
     src/OrderBook.cpp
 )
 
+# --- Tests -------------------------------------------------------------------
+enable_testing()
+add_executable(orderbook_tests
+    tests/test_orderbook.cpp
+    src/OrderBook.cpp
+)
+add_test(NAME orderbook COMMAND orderbook_tests)
+
 # --- Async lock-free pipeline benchmark: needs Boost (header-only lockfree). ---
 find_package(Boost QUIET)
 if(Boost_FOUND)
