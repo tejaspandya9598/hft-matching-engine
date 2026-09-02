@@ -19,13 +19,33 @@ through intrusive linked lists, hash maps, and a custom memory pool.
 
 ## Performance
 
-| Path | Throughput | Notes |
+| Path | Throughput | Measured |
 |---|---|---|
-| Synchronous core (`hft_sync_benchmark`) | ~26M msgs/sec (Apple M2) · 35M+ (Linux aarch64) | no dependencies |
-| End-to-end lock-free pipeline (`hft_benchmark`) | ~8.5M msgs/sec (Apple M2) | needs Boost |
+| Synchronous core (`hft_sync_benchmark`) | **~21M msgs/sec** (Apple M2, 8 cores) | yes — 9 runs, see below |
+| End-to-end lock-free pipeline (`hft_benchmark`) | not currently measured | needs Boost, which is not installed here |
 
-The synchronous figure is reproducible with the included benchmark — it also runs a
-set of correctness asserts (matching, partial fill, cancel) before timing.
+The synchronous figure is what the included benchmark actually prints on the
+machine described. Nine runs, built with the flags in `CMakeLists.txt`
+(`-O3 -march=native -flto`):
+
+```
+19.55  19.71  20.80  21.21  21.75  21.82  21.88  22.45  22.50   (M msgs/sec)
+median 21.75   range 19.55 – 22.50
+```
+
+Quote it as ~21M, not as a single number: the spread across runs on an
+8-core laptop under a normal desktop load is about 15%, and a headline figure
+narrower than the measurement noise is a figure that has not been measured.
+
+The benchmark also runs correctness asserts (matching, partial fill, cancel)
+before it starts timing, so a run that prints a throughput is a run whose book
+behaved.
+
+Two figures used to sit in this table that are not here any more: 26M msgs/sec
+on the same M2, and 35M+ on Linux aarch64. The first does not reproduce — nine
+attempts on the machine it names topped out at 22.5M. The second may well be
+right, but there is no aarch64 Linux host to run it on, and an unreproduced
+number is not a result.
 
 ## Layout
 
