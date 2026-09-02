@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstddef>
 #include <iostream>
+#include <map>
+#include <functional>
 
 namespace trading {
 
@@ -32,12 +34,25 @@ struct alignas(64) Order {
         : id(i), price(p), qty(q), side(s), next(nullptr), prev(nullptr) {}
 };
 
-// Represents an aggregated price level
+// Forward declarations so a level can hold its own position in the sorted side.
+struct PriceLevel;
+using BidMap = std::map<Price, PriceLevel*, std::greater<Price>>;
+using AskMap = std::map<Price, PriceLevel*, std::less<Price>>;
+
+// Represents an aggregated price level.
+//
+// `bid_it` / `ask_it` are this level's own position in the sorted side. Erasing by
+// iterator is amortised O(1); erasing by key costs another O(log L) tree descent, and
+// the old code paid that on every level that emptied. Only the iterator matching the
+// level's side is ever valid — `side_is_bid` says which.
 struct alignas(64) PriceLevel {
     Price price = 0;
     Quantity total_qty = 0;
     Order* head = nullptr;
     Order* tail = nullptr;
+    bool side_is_bid = false;
+    BidMap::iterator bid_it{};
+    AskMap::iterator ask_it{};
 
     PriceLevel() = default;
     explicit PriceLevel(Price p) : price(p), total_qty(0), head(nullptr), tail(nullptr) {}

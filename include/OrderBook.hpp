@@ -23,11 +23,15 @@ private:
     std::unordered_map<Price, PriceLevel*> ask_levels_;
 
     // Ordered maps to quickly find the best bid/ask
-    std::map<Price, PriceLevel*, std::greater<Price>> bids_;
-    std::map<Price, PriceLevel*, std::less<Price>> asks_;
+    BidMap bids_;
+    AskMap asks_;
 
     void add_order_to_level(PriceLevel* level, Order* order);
     void remove_order_from_level(PriceLevel* level, Order* order);
+
+    // Drop an emptied level from both indices and return its memory. Erases by the
+    // iterator stored on the level, so no second tree descent.
+    void destroy_level(PriceLevel* level);
 
 public:
     OrderBook();
