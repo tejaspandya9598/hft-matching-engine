@@ -8,9 +8,25 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Performance flags. -march=native tunes to the build host; drop it if you need a
+# Performance flags. Tune to the build host; drop the -mtune flag if you need a
 # portable binary.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -flto -Wall -Wextra")
+#
+# The host-tuning flag is spelled differently depending on compiler and target.
+# clang on aarch64 rejects -march=native outright ("the clang compiler does not
+# support '-march=native'"), so hardcoding it broke the documented build on
+# Linux ARM with clang - which is exactly the platform this engine is fastest on.
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-march=native" HAVE_MARCH_NATIVE)
+check_cxx_compiler_flag("-mcpu=native" HAVE_MCPU_NATIVE)
+if(HAVE_MARCH_NATIVE)
+    set(HOST_TUNE "-march=native")
+elseif(HAVE_MCPU_NATIVE)
+    set(HOST_TUNE "-mcpu=native")
+else()
+    set(HOST_TUNE "")
+    message(STATUS "No host-tuning flag available; building generic.")
+endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${HOST_TUNE} -flto -Wall -Wextra")
 
 include_directories(include)
 

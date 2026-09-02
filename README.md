@@ -19,33 +19,50 @@ through intrusive linked lists, hash maps, and a custom memory pool.
 
 ## Performance
 
-| Path | Throughput | Measured |
+Everything below comes from `./bench/run_benchmarks.sh`, which builds and runs both
+paths five times each and prints every run. `--linux` repeats the whole thing inside
+a `linux/arm64` container so the two platforms are measured by the same script.
+
+| Path | macOS (Apple M2, 8 cores, Apple clang 21) | Linux aarch64 (Debian 12, 4 cores, g++ 12) |
 |---|---|---|
-| Synchronous core (`hft_sync_benchmark`) | **~21M msgs/sec** (Apple M2, 8 cores) | yes — 9 runs, see below |
-| End-to-end lock-free pipeline (`hft_benchmark`) | not currently measured | needs Boost, which is not installed here |
+| Synchronous core (`hft_sync_benchmark`) | **~21M msgs/sec** (19.6 – 22.5) | **~36M msgs/sec** (36.0 – 36.5) |
+| Lock-free pipeline (`hft_benchmark`, Boost) | **~10.7M msgs/sec** (10.3 – 11.0) | **~8.5M msgs/sec** (8.0 – 9.1) |
 
-The synchronous figure is what the included benchmark actually prints on the
-machine described. Nine runs, built with the flags in `CMakeLists.txt`
-(`-O3 -march=native -flto`):
+With clang 14 instead of g++ on the same Linux target the synchronous core reaches
+**~39.8M msgs/sec** (38.8 – 39.9), so the platform gap is not a compiler artefact.
 
-```
-19.55  19.71  20.80  21.21  21.75  21.82  21.88  22.45  22.50   (M msgs/sec)
-median 21.75   range 19.55 – 22.50
-```
+Three things in that table are worth more than the headline numbers.
 
-Quote it as ~21M, not as a single number: the spread across runs on an
-8-core laptop under a normal desktop load is about 15%, and a headline figure
-narrower than the measurement noise is a figure that has not been measured.
+**The spread is part of the measurement.** On macOS the synchronous core varies about
+15% run to run; on Linux it varies under 1%. Same silicon. A single-threaded loop that
+swings 15% is telling you about the scheduler and the allocator it is sitting on, not
+about the matching engine, and any figure quoted tighter than that swing was never
+really measured.
 
-The benchmark also runs correctness asserts (matching, partial fill, cancel)
-before it starts timing, so a run that prints a throughput is a run whose book
-behaved.
+**The same silicon runs this 1.7x faster under Linux.** 21M against 36M, and the Linux
+side is a 4-core VM on the same laptop, which if anything should cost it. The engine's
+hot path allocates nothing, so the difference is not malloc on the critical path; it is
+everything around it. Worth knowing before quoting a throughput without naming an OS.
 
-Two figures used to sit in this table that are not here any more: 26M msgs/sec
-on the same M2, and 35M+ on Linux aarch64. The first does not reproduce — nine
-attempts on the machine it names topped out at 22.5M. The second may well be
-right, but there is no aarch64 Linux host to run it on, and an unreproduced
-number is not a result.
+**The two paths rank differently on the two platforms.** macOS is slower on the
+synchronous core and faster on the lock-free pipeline (10.7M vs 8.5M). The async path
+is bounded by the queue handoff between producer and consumer rather than by matching,
+so it is measuring a different thing, and the ordering flips.
+
+Both benchmarks run correctness asserts (matching, partial fill, cancel) before they
+start timing, so a run that prints a throughput is a run whose book behaved.
+
+### Corrections
+
+This table used to read *26M msgs/sec (Apple M2) / 35M+ (Linux aarch64)* for the
+synchronous core and *~8.5M (Apple M2)* for the pipeline. Measured properly:
+
+- **26M on the M2 does not reproduce.** Fourteen runs on the machine it names top out
+  at 22.5M. It reads ~21M now.
+- **35M+ on Linux aarch64 was right**, and was verified rather than dropped: 36M with
+  g++, 39.8M with clang.
+- **~8.5M for the pipeline was a Linux number wearing a macOS label.** macOS measures
+  ~10.7M; Linux measures ~8.5M.
 
 ## Layout
 
