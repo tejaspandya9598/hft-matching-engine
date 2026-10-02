@@ -57,18 +57,6 @@ so it is measuring a different thing, and the ordering flips.
 Both benchmarks run correctness asserts (matching, partial fill, cancel) before they
 start timing, so a run that prints a throughput is a run whose book behaved.
 
-### Corrections
-
-This table used to read *26M msgs/sec (Apple M2) / 35M+ (Linux aarch64)* for the
-synchronous core and *~8.5M (Apple M2)* for the pipeline. Measured properly:
-
-- **26M on the M2 was not reproduced.** Fourteen runs on the machine it names topped out
-  at 22.5M, and a later session's best was 25.0M. It reads ~21M now.
-- **35M+ on Linux aarch64 was right**, and was verified rather than dropped: 36M with
-  g++, 39.8M with clang.
-- **~8.5M for the pipeline was a Linux number wearing a macOS label.** macOS measures
-  ~10.7M; Linux measures ~8.5M.
-
 ## Layout
 
 ```
