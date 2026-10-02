@@ -45,7 +45,7 @@ about the matching engine, and any figure quoted tighter than that swing was nev
 really measured.
 
 **The same silicon runs this 1.7x faster under Linux.** 21M against 36M, and the Linux
-side is a 4-core VM on the same laptop, which if anything should cost it. The engine's
+side is a 4-core VM on the same laptop, which, if anything, should cost it. The engine's
 hot path allocates nothing, so the difference is not malloc on the critical path; it is
 everything around it. Worth knowing before quoting a throughput without naming an OS.
 
