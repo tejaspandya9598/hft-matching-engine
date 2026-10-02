@@ -1,8 +1,9 @@
 # High-Performance Limit Order Book (LOB) Matching Engine
 
 A deterministic, low-latency limit-order-book and matching engine in **C++20**.
-Every primary book operation — insertion, cancellation, execution — runs in **O(1)**
-through intrusive linked lists, hash maps, and a custom memory pool.
+Cancels, executions and adds at an existing price level run in **O(1)** average time
+through intrusive linked lists, hash maps, and a custom memory pool; opening a new price
+level costs O(log L) for best-price tracking (see *Complexity, precisely*).
 
 ## Why it's fast
 
@@ -31,6 +32,10 @@ a `linux/arm64` container so the two platforms are measured by the same script.
 With clang 14 instead of g++ on the same Linux target the synchronous core reaches
 **~39.8M msgs/sec** (38.8 – 39.9), so the platform gap is not a compiler artefact.
 
+A second macOS session on 2026-10-02 (same M2, Apple clang 21, five runs each) measured
+the synchronous core at 19.2 – 25.0M (median 24.6M) and the pipeline at 9.9 – 10.4M:
+inside the spread above, and a reminder of how much a laptop under desktop load moves.
+
 Three things in that table are worth more than the headline numbers.
 
 **The spread is part of the measurement.** On macOS the synchronous core varies about
@@ -57,8 +62,8 @@ start timing, so a run that prints a throughput is a run whose book behaved.
 This table used to read *26M msgs/sec (Apple M2) / 35M+ (Linux aarch64)* for the
 synchronous core and *~8.5M (Apple M2)* for the pipeline. Measured properly:
 
-- **26M on the M2 does not reproduce.** Fourteen runs on the machine it names top out
-  at 22.5M. It reads ~21M now.
+- **26M on the M2 was not reproduced.** Fourteen runs on the machine it names topped out
+  at 22.5M, and a later session's best was 25.0M. It reads ~21M now.
 - **35M+ on Linux aarch64 was right**, and was verified rather than dropped: 36M with
   g++, 39.8M with clang.
 - **~8.5M for the pipeline was a Linux number wearing a macOS label.** macOS measures
@@ -73,12 +78,15 @@ hft-matching-engine/
 │   ├── OrderBook.hpp    # the matching engine interface
 │   ├── MemoryPool.hpp   # pre-warmed O(1) object pool
 │   ├── Backtester.hpp   # lock-free async pipeline (Boost)
-│   └── ItchParser.hpp   # ITCH message decoding
+│   └── ItchParser.hpp   # ITCH 5.0 Add Order decoding (sketch; not used by the benchmarks)
 ├── src/
 │   ├── OrderBook.cpp     # matching, cancel, execute
 │   └── Benchmark.cpp     # async pipeline benchmark (Boost)
 ├── bench/
-│   └── sync_benchmark.cpp  # dependency-free core benchmark + smoke test
+│   ├── sync_benchmark.cpp  # dependency-free core benchmark + smoke test
+│   └── run_benchmarks.sh   # reproduces every throughput figure above
+├── tests/
+│   └── test_orderbook.cpp  # 20 checks, run by CTest
 └── CMakeLists.txt
 ```
 
@@ -130,9 +138,11 @@ call. The memory pool converts `new`/`delete` into free-list pops/pushes, which 
 what keeps *tail* latency flat, not just the average — allocation is where p99
 spikes come from.
 
-Throughput methodology: the benchmark pre-generates a uniform add/cancel/execute
-message mix, then times the pure matching loop — the number measures the engine,
-not the RNG. The test suite (`tests/test_orderbook.cpp`, run via CTest) pins down
+Throughput methodology: both benchmarks fire 5,000,000 limit orders of 100 lots,
+alternating buy and sell across 100 overlapping price levels, so most orders cross and
+match. That exercises insertion, the matching loop and pool reuse; cancels and
+executions are covered by the tests, not by the timed loop. Orders are computed inside
+the loop from the index, with no random numbers to generate. The test suite (`tests/test_orderbook.cpp`, run via CTest) pins down
 price-time priority, limit-respecting book walks, partial fills, and pool reuse
 under a 10k-order churn.
 

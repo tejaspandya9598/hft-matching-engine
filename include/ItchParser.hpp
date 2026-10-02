@@ -19,11 +19,14 @@ namespace trading {
 // ITCH 5.0 messages are big-endian network layout
 #pragma pack(push, 1)
 
+// Add Order (type 'A'), 36 bytes on the wire. The timestamp is a 6-byte (48-bit)
+// count of nanoseconds since midnight. Modelling it as 8 bytes, as this struct used
+// to, shifts every later field by two bytes and misreads real feed data.
 struct AddOrderMessage {
     char message_type; // 'A'
     uint16_t stock_locate;
     uint16_t tracking_number;
-    uint64_t timestamp;
+    uint8_t timestamp[6];
     uint64_t order_reference_number;
     char buy_sell_indicator; // 'B' or 'S'
     uint32_t shares;
@@ -32,6 +35,7 @@ struct AddOrderMessage {
 };
 
 #pragma pack(pop)
+static_assert(sizeof(AddOrderMessage) == 36, "ITCH 5.0 Add Order is 36 bytes");
 
 class ItchParser {
 public:

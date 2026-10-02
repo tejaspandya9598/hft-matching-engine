@@ -226,7 +226,8 @@ void OrderBook::print_top_of_book() const {
         if (it != ask_levels_.end()) ba_qty = it->second->total_qty;
     }
 
-    std::cout << "BBO: " << bb_qty << " @ " << bb << " | " << ba << " @ " << ba_qty << "\n";
+    // qty @ price on both sides (the ask used to print price @ qty).
+    std::cout << "BBO: " << bb_qty << " @ " << bb << " | " << ba_qty << " @ " << ba << "\n";
 }
 
 } // namespace trading
